@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="Task-Aware Modality Selection for Multimodal VLA in Robotic Manipulation. A Dynamic Router that estimates the relevance of auxiliary sensory streams (external RGB, thermal, tactile) from the wrist camera and task prompt, supervised by VLM auto-labeling.">
+  <meta name="keywords" content="Vision-Language-Action, VLA, Dynamic Router, Multimodal Fusion, Robotic Manipulation, Thermal, Tactile, Selective Attention">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task-Aware Modality Selection for Multimodal VLA in Robotic Manipulation</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+  <link rel="stylesheet" href="./static/css/index.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/index.js"></script>
+
+  <!-- MathJax -->
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [ ['$', '$'], ['\\(', '\\)'] ],
+        displayMath: [ ['$$', '$$'], ['\\[', '\\]'] ],
+        processEscapes: true,
+        tags: 'all',
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script
+    type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+  </script>
+</head>
+<body>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">Task-Aware Modality Selection<br>for Multimodal VLA in Robotic Manipulation</h1>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              Young-Chae Son, Jung-Woo Lee, Yoon-Ji Choi, Dae-Kwan Ko and Soo-Chul Lim*
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              Dongguk University, Seoul 04620, South Korea
+            </span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- PDF Link. -->
+              <!-- Video Link. -->
+              <!-- Code Link. -->
+              <!-- Dataset Link. -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+<div class="container is-max-desktop">
+
+<div class="content">
+  <style>
+h1.title {
+  font-size: 2rem !important;
+  line-height: 1.3;
+}
+table.paper-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+table.paper-table th,
+table.paper-table td {
+  text-align: center;
+  padding: 0.45rem 0.5rem;
+  border: none;
+}
+table.paper-table thead tr:last-child th {
+  border-bottom: 1px solid #363636;
+}
+table.paper-table thead tr:first-child th {
+  border-top: 1.5px solid #363636;
+}
+table.paper-table tbody tr:last-child td {
+  border-bottom: 1.5px solid #363636;
+}
+table.paper-table td.rowhead,
+table.paper-table th.rowhead {
+  text-align: left;
+  font-weight: 600;
+}
+table.paper-table tr.avg td {
+  border-top: 1px solid #363636;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+</style>
+
+<div class="is-size-6 has-text-centered" style="margin-top: -5rem; margin-bottom: 0.5rem; color: #555;">
+  * Corresponding Author
+</div>
+<div class="has-text-centered" style="margin-top: 0.8rem; margin-bottom: 2rem;">
+  <p class="is-size-5" style="font-weight: 600;">
+    Under review
+  </p>
+</div>
+
+<div class="columns is-centered has-text-centered" style="margin-bottom: 2rem;">
+  <div class="column is-four-fifths">
+    <h2 class="title is-3">Abstract</h2>
+    <div class="content has-text-justified">
+      In robotics, Vision-Language-Action (VLA) models that integrate multimodal signals from multi-view and sensory inputs have emerged as an effective approach for general-purpose manipulation. However, most prior work adopts static fusion, processing all sensory streams uniformly regardless of their task relevance. This indiscriminate processing can introduce interference from task-irrelevant features, potentially degrading representation learning and downstream policy performance. Inspired by human active perception, we propose a task-aware sensory routing framework for multimodal VLA models, introducing a lightweight Dynamic Router that uses the task prompt and wrist-camera observations to estimate the relevance of auxiliary sensory streams. By emphasizing task-relevant streams while attenuating less relevant ones, the proposed framework helps the policy focus on informative features. Furthermore, to reduce the cost of obtaining large-scale supervision for router training, we establish an automated labeling pipeline that uses a Vision-Language Model to generate modality-importance labels without manual frame-level annotation. Real-world manipulation experiments show that the proposed method improves task success rates over baseline policies without task-aware routing, supporting the effectiveness of VLM-supervised sensory routing for multimodal robotic manipulation.
+    </div>
+  </div>
+</div>
+
+<hr />
+
+<h2 id="motivation">Motivation</h2>
+
+<div class="content has-text-justified">
+  <p>
+    The importance of sensory information varies with the task. The human cognitive system handles this through
+    <em>active perception</em>: it modulates the weight of each sensory channel according to task context and goal,
+    suppressing irrelevant signals rather than processing everything uniformly. When turning off an overheated
+    electronic device, a person relies on visual localization while exploring, shifts attention to thermal sensing
+    when assessing risk, and prioritizes tactile feedback while grasping.
+  </p>
+  <p>
+    Static fusion in current multimodal VLAs has two failure modes. First, <strong>redundancy and interference</strong> &mdash;
+    projecting irrelevant data into high-dimensional feature spaces hinders representation learning and slows convergence.
+    Second, <strong>reduced robustness</strong> &mdash; at certain phases, irrelevant modalities act as noise that dilutes
+    meaningful information. We therefore route sensory streams dynamically instead of fusing them uniformly.
+  </p>
+</div>
+
+<div class="content">
+  <p><img src="static/image/Fig1.png" alt="System overview and Camera Router module" /></p>
+  <p class="has-text-centered is-size-7 mt-2">
+    <strong>Figure 1:</strong> Sensor configuration (wrist RGB, external RGB, thermal, visual-tactile) and the Camera Router
+    module, which predicts a per-stream importance from the prompt and the wrist image and scales the corresponding
+    visual tokens before they enter the pretrained VLM.
+  </p>
+</div>
+
+<h3>Contributions</h3>
+<ul>
+  <li><strong>Task-Aware Sensory Routing.</strong> A Dynamic Router that uses the wrist camera as an anchor view together with the task prompt to estimate the relevance of auxiliary sensory streams in real time.</li>
+  <li><strong>Improved Long-Horizon Manipulation.</strong> By selectively attenuating task-irrelevant streams, the method outperforms the uniform-fusion baseline on long-horizon manipulation tasks.</li>
+  <li><strong>Scalable VLM Supervision.</strong> A VLM-based auto-labeling pipeline that produces routing labels without additional data collection or frame-level human annotation.</li>
+</ul>
+
+<p><br /></p>
+
+<hr />
+
+<h2 id="framework">Framework</h2>
+
+<p><img src="static/image/Fig3.png" alt="Operational process of the proposed model" /></p>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Figure 2:</strong> Operational process of the proposed model.
+  (a) <strong>Dynamic Router Module:</strong> the router uses the wrist camera and task prompt to analyze the current
+  context and predict the relevance of auxiliary sensory streams in real time.
+  (b) <strong>Task-Aware Sensory Routing:</strong> based on that prediction, the model selectively attends to the most
+  informative visual streams.
+  (c) <strong>Real-world Execution:</strong> robot action sequence for Task 3.
+</p>
+
+<p><br /></p>
+
+<p><img src="static/image/Fig2.png" alt="Overview of VLA training with the Dynamic Router" /></p>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Figure 3:</strong> Overview of VLA training with the Dynamic Router. The router predicts importance
+  weights $\mathbf{w}$ for the auxiliary streams and acts as a gating mechanism, letting the VLA framework
+  adaptively prioritize task-relevant visual information during action training.
+</p>
+
+<div class="content has-text-justified" style="margin-top: 10px;">
+  <p>
+    We build on the pretrained $\pi_{0.5}$ policy, which consists of a PaliGemma vision-language backbone and a
+    separate action expert. All RGB, thermal and tactile observations are processed by the shared SigLIP vision
+    encoder, with thermal and tactile inputs converted into three-channel image representations. A
+    <strong>Camera Router</strong> is inserted between the SigLIP encoder and the PaliGemma transformer to estimate the
+    task relevance of the auxiliary views and gate their features before multimodal fusion.
+  </p>
+  <p>
+    During task adaptation, the SigLIP encoder and the original parameters of the Gemma component and action expert
+    remain frozen. Only their LoRA adapters ($r=16$, $\alpha=16$), the Camera Router, the learnable gating parameter
+    $\boldsymbol{\gamma}$ and the fusion projection layer are optimized. Training uses AdamW with batch size 8 for 50K steps.
+  </p>
+</div>
+
+<h3>Router architecture</h3>
+
+<div class="content has-text-justified">
+  <p>
+    The router takes the wrist camera image and the task prompt as inputs. Attention pooling over the prompt tokens
+    gives the text feature $h_{\mathrm{prompt}}$; mean pooling over the wrist camera tokens gives the visual feature
+    $h_{\mathrm{wrist}}$. The wrist camera serves as a fixed anchor view that is always active during execution,
+    providing stable proximal information for close-range robot-object interaction.
+  </p>
+  <p>
+    With $M$ auxiliary streams to route (here external RGB, thermal and tactile, so $M=3$), the router input is
+    $\mathbf{x} = [h_{\mathrm{prompt}};\, h_{\mathrm{wrist}}]$ and it predicts a categorical distribution over them:
+  </p>
+  $$\mathbf{w} = \mathrm{Softmax}(\mathrm{MLP}(\mathbf{x})) \in [0,1]^{M}, \qquad \sum_{m=1}^{M} w_m = 1.$$
+</div>
+
+<h3>Dynamic gating</h3>
+
+<div class="content has-text-justified">
+  <p>
+    For each auxiliary stream $m \in \{\mathrm{external},\, \mathrm{thermal},\, \mathrm{tactile}\}$, the scalar weight
+    $w_m$ is applied together with a stream-specific learnable channel-wise scaling
+    $\boldsymbol{\gamma}_m \in \mathbb{R}^{D}$:
+  </p>
+  $$F'_m = \boldsymbol{\gamma}_m \odot (w_m \cdot F_m),$$
+  <p>
+    where $F_m$ are the original feature tokens of stream $m$ and $F'_m$ the gated feature. The scaling parameter
+    mitigates abrupt changes during gating and stabilizes training. The wrist camera feature bypasses routing, is
+    concatenated along the channel dimension with the gated auxiliary features, and the result is projected back to
+    the embedding dimension. The fused feature $F_{\mathrm{fused}}$ is what the pretrained VLM sees &mdash; visual
+    information selectively emphasized by task context.
+  </p>
+  <p>
+    The two objectives are optimized jointly, so the router learns from both explicit routing supervision and the
+    action prediction objective:
+  </p>
+  $$L_{\mathrm{total}} = L_{\mathrm{action}} + \lambda L_{\mathrm{routing}}.$$
+</div>
+
+<h3>Imbalanced routing learning</h3>
+
+<div class="content has-text-justified">
+  <p>
+    Certain modalities are not needed throughout a task; they matter only at sparse moments involving contact or
+    decision-making. This induces an imbalance in the ground-truth routing labels whose severity varies across tasks.
+    To complement minority-class learning under such imbalance, the router is trained with Focal Loss
+    ($\alpha_{\text{focal}}=0.25$, $\beta=2.0$):
+  </p>
+  $$L_{\mathrm{routing}} = -\alpha_{\text{focal}} (1 - p_t)^{\beta} \log(p_t).$$
+</div>
+
+<p><br /></p>
+
+<hr />
+
+<h2 id="autolabel">VLM Auto-Labeling</h2>
+
+<div class="content has-text-justified">
+  <p>
+    Manually annotating task stages or required sensory data for every frame of a large-scale dataset is a
+    scalability bottleneck. We instead use <strong>Qwen3-VL</strong> to recognize task phases in the demonstration
+    videos and emit discrete modality-relevance labels that supervise the router, which then predicts continuous
+    routing weights at execution time.
+  </p>
+  <p>
+    A single frame is ambiguous &mdash; a static grasping pose is hard to place between the onset of <em>Transporting</em>
+    and <em>Placing</em>. We therefore use a <strong>History-Aware Prompting</strong> strategy that pairs the current
+    visual information with past action history. Input videos are segmented into chunks of $T=30$ frames, and
+    $N_s=10$ frames are uniformly sampled per chunk as VLM input. The prompt is composed of:
+  </p>
+  <ol>
+    <li><em>Role</em> &mdash; the assigned persona defining the agent's behavioral context.</li>
+    <li><em>Task Description</em> &mdash; the overall objective of the task.</li>
+    <li><em>Workflow Definition</em> &mdash; the sequence of actions during task execution.</li>
+    <li><em>Gripper Action</em> &mdash; the scalar value representing the gripper's opening width.</li>
+    <li><em>Action History</em> &mdash; a summary of the previous three chunks.</li>
+  </ol>
+  <p>
+    Given the sampled frames and this context, the VLM infers the task phase from the robot's motion, gripper state,
+    visible objects and consistency with the predefined workflow, and assigns one categorical routing label from
+    $\{\text{external RGB},\,\text{thermal},\,\text{tactile}\}$ to each 30-frame chunk, propagated to all frames in
+    that chunk.
+  </p>
+  <p>
+    Against independent human annotations over 150 demonstration episodes, frame-level agreement was
+    <strong>82.4%</strong>, with most discrepancies at task-phase boundaries rather than in modality selection.
+    Segmental F1 scores &mdash; F1@10: 96.3%, F1@25: 93.8%, F1@50: 79.0% &mdash; indicate that the temporal structure and
+    modality choices produced by the VLM closely track human annotation.
+  </p>
+</div>
+
+<p><br /></p>
+
+<hr />
+
+<h2 id="experiment">Experiment</h2>
+
+<div class="content has-text-justified">
+  <p>
+    50 expert demonstrations were collected per task. Each sample contains <em>State</em> and <em>Action</em>
+    (7-dimensional vectors: six joint angles plus gripper state, and six target joint angles plus gripper command),
+    <em>Image</em>, and a natural-language <em>Task prompt</em>. Images were collected at 15 Hz from wrist and external
+    RGB cameras ($640\times480$), a thermal camera ($256\times192$) and a tactile sensor ($640\times480$).
+  </p>
+  <p>
+    All three tasks require thermal or tactile information beyond RGB, and in each of them the auxiliary modality is
+    informative only during specific phases &mdash; which is what makes them a test of selective routing rather than of
+    fusion capacity. Evaluation trials were evenly divided between two predefined object locations about 30 cm apart,
+    with the object position further perturbed by roughly 5 cm at each reset.
+  </p>
+</div>
+
+<p><img src="static/image/Experiment_setup.png" alt="Experimental setup for each task" /></p>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Figure 4:</strong> Experimental setup for each task. (a) Battery Sorting, (b) Wire Selection, (c) Valve
+  Operation. All tasks use a dual RGB camera system, and each setup adds task-specific modalities such as a thermal
+  camera or a tactile sensor.
+</p>
+
+<div class="columns is-multiline mt-5">
+  <div class="column is-one-third">
+    <div class="box" style="height: 100%; background-color: #f9f9f9; border: 1px solid #e8e8e8;">
+      <h3 class="title is-6">Task 1 &mdash; Battery Sorting</h3>
+      <p class="is-size-7">Visual + Thermal</p>
+      <p class="is-size-7 has-text-justified">
+        An overheated battery goes in the rear bin; a normal-temperature battery is placed upright on a moving
+        conveyor belt. The two are indistinguishable in RGB, so thermal sensing is necessary for classification.
+        A trial fails if either battery is misclassified or if the normal battery falls over on the belt.
+      </p>
+    </div>
+  </div>
+  <div class="column is-one-third">
+    <div class="box" style="height: 100%; background-color: #f9f9f9; border: 1px solid #e8e8e8;">
+      <h3 class="title is-6">Task 2 &mdash; Wire Selection</h3>
+      <p class="is-size-7">Visual + Tactile</p>
+      <p class="is-size-7 has-text-justified">
+        Two visually identical wires differing by about 0.4 mm in diameter are sorted by thickness &mdash; thick to the
+        front bin, thin to the rear. Visual discrimination is unreliable, so thickness must be inferred from tactile
+        feedback acquired during grasping.
+      </p>
+    </div>
+  </div>
+  <div class="column is-one-third">
+    <div class="box" style="height: 100%; background-color: #f9f9f9; border: 1px solid #e8e8e8;">
+      <h3 class="title is-6">Task 3 &mdash; Valve Operation</h3>
+      <p class="is-size-7">Visual + Thermal + Tactile</p>
+      <p class="is-size-7 has-text-justified">
+        An emergency shutdown after pipeline overheating: identify the overheated valve, rotate it closed, then
+        activate the emergency switch. Thermal identifies the valve; tactile provides contact feedback for stable
+        manipulation. Unlike Tasks 1 and 2, this task requires switching between auxiliary modalities across phases.
+      </p>
+    </div>
+  </div>
+</div>
+
+<p><br /></p>
+
+<hr />
+
+<h2 id="results">Results</h2>
+
+<h3>Task success rate</h3>
+
+<div class="content has-text-justified">
+  <p>
+    The RGB-only baseline (<em>w/o Multimodal</em>) failed on every task. Uniform-Weight Gating reached an average
+    success rate of 10.00%, whereas the proposed Dynamic Router with wrist-camera and prompt inputs reached
+    <strong>83.33%</strong>.
+  </p>
+</div>
+
+<div class="table-wrap">
+<table class="paper-table">
+  <thead>
+    <tr>
+      <th></th>
+      <th colspan="2">w/o Router</th>
+      <th colspan="3">w/ Router</th>
+    </tr>
+    <tr>
+      <th class="rowhead">Policy / Router Input</th>
+      <th>w/o Multimodal</th>
+      <th>Uniform-Weight Gating</th>
+      <th>Wrist Cam + Proprio</th>
+      <th>Ext. Cam + Prompt</th>
+      <th>Wrist Cam + Prompt</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="rowhead">Task 1</td>
+      <td>0.00% (0/10)</td>
+      <td>30.00% (3/10)</td>
+      <td>20.00% (2/10)</td>
+      <td><strong>90.00% (9/10)</strong></td>
+      <td><strong>90.00% (9/10)</strong></td>
+    </tr>
+    <tr>
+      <td class="rowhead">Task 2</td>
+      <td>0.00% (0/10)</td>
+      <td>0.00% (0/10)</td>
+      <td>60.00% (6/10)</td>
+      <td>70.00% (7/10)</td>
+      <td><strong>90.00% (9/10)</strong></td>
+    </tr>
+    <tr>
+      <td class="rowhead">Task 3</td>
+      <td>0.00% (0/10)</td>
+      <td>0.00% (0/10)</td>
+      <td>10.00% (1/10)</td>
+      <td>60.00% (6/10)</td>
+      <td><strong>70.00% (7/10)</strong></td>
+    </tr>
+    <tr class="avg">
+      <td class="rowhead">Average SR</td>
+      <td>0.00 &plusmn; 0.00%</td>
+      <td>10.00 &plusmn; 17.32%</td>
+      <td>30.00 &plusmn; 26.46%</td>
+      <td>73.33 &plusmn; 15.28%</td>
+      <td><strong>83.33 &plusmn; 11.55%</strong></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Table 1:</strong> Quantitative comparison of task success rates. Bold indicates the best result in each row.
+</p>
+
+<div class="content has-text-justified" style="margin-top: 1.5rem;">
+  <p>
+    Among router inputs, <em>Wrist Cam + Prompt</em> performs best. <em>External Cam + Prompt</em> is competitive at
+    73.33%, but 10 points lower &mdash; the physical distance and viewpoint of the fixed external view constrain how well
+    it captures fine-grained contact or the precise timing of manipulation, whereas the wrist camera gives an
+    ego-centric close-range view that makes object state changes and task phases easier to distinguish.
+    <em>Wrist Cam + Proprio</em> is substantially worse, and on Task 1 it even falls below the baseline &mdash; a negative
+    transfer consistent with shortcut learning, where the router latches onto proprioceptive cues correlated with
+    task phase instead of learning robust visual features.
+  </p>
+</div>
+
+<h3>Long-horizon behavior</h3>
+
+<div class="content has-text-justified">
+  <p>
+    Binary success rates do not capture how far a policy gets before failing, so we also report
+    <strong>Mean Task Progress</strong>:
+  </p>
+  $$\mathrm{MTP}_t = \frac{100}{M N_t} \sum_{i=1}^{M} k_i,$$
+  <p>
+    where $k_i$ is the number of consecutively completed subtasks before the first failure in rollout $i$, $N_t$ the
+    total number of subtasks in task $t$, and $M$ the number of rollouts. The baseline ranges from 27.1% to 53.8% MTP
+    and completes the full task in only 3 of 30 rollouts. The proposed method ranges from 91.4% to 97.5%.
+  </p>
+</div>
+
+<div class="table-wrap">
+<table class="paper-table">
+  <thead>
+    <tr>
+      <th class="rowhead">Task</th>
+      <th class="rowhead">Method</th>
+      <th>Mean Task Progress</th>
+      <th>Full-Task Success</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="rowhead">Task 1</td>
+      <td class="rowhead">Base Policy (Uniform-Weight Gating)</td>
+      <td>4.30/8 (53.8%)</td>
+      <td>3/10 (30%)</td>
+    </tr>
+    <tr>
+      <td class="rowhead"></td>
+      <td class="rowhead">Ours (Dynamic Router)</td>
+      <td><strong>7.50/8 (93.8%)</strong></td>
+      <td><strong>9/10 (90%)</strong></td>
+    </tr>
+    <tr>
+      <td class="rowhead">Task 2</td>
+      <td class="rowhead">Base Policy (Uniform-Weight Gating)</td>
+      <td>2.70/8 (33.8%)</td>
+      <td>0/10 (0%)</td>
+    </tr>
+    <tr>
+      <td class="rowhead"></td>
+      <td class="rowhead">Ours (Dynamic Router)</td>
+      <td><strong>7.80/8 (97.5%)</strong></td>
+      <td><strong>9/10 (90%)</strong></td>
+    </tr>
+    <tr>
+      <td class="rowhead">Task 3</td>
+      <td class="rowhead">Base Policy (Uniform-Weight Gating)</td>
+      <td>1.90/7 (27.1%)</td>
+      <td>0/10 (0%)</td>
+    </tr>
+    <tr>
+      <td class="rowhead"></td>
+      <td class="rowhead">Transformer-Fusion</td>
+      <td>2.00/7 (28.6%)</td>
+      <td>0/10 (0%)</td>
+    </tr>
+    <tr>
+      <td class="rowhead"></td>
+      <td class="rowhead">Ours (Dynamic Router)</td>
+      <td><strong>6.40/7 (91.4%)</strong></td>
+      <td><strong>7/10 (70%)</strong></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Table 2:</strong> Performance evaluation across tasks. A Transformer-Fusion baseline applying multi-head
+  self-attention to the post-SigLIP sensory tokens completes the early subtasks but degrades as sensory relevance
+  shifts across stages.
+</p>
+
+<div class="content has-text-justified" style="margin-top: 1.5rem;">
+  <p>
+    The failures that remain for the proposed method are mostly low-level manipulation errors &mdash; objects dropped
+    during transport, unsuccessful grasps &mdash; rather than visible errors in modality selection.
+  </p>
+</div>
+
+<p><img src="static/image/Fig_sequence.png" alt="Dynamic modality routing across long-horizon tasks" /></p>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Figure 5:</strong> Dynamic modality routing across long-horizon tasks. (a) Multi-step execution sequences for
+  the three evaluation tasks. (b) Router weights for Tasks 1&ndash;3, showing how the model adjusts the contributions of
+  RGB, thermal and tactile modalities according to the task phase.
+</p>
+
+<h3>Labeling strategy</h3>
+
+<div class="table-wrap">
+<table class="paper-table">
+  <thead>
+    <tr>
+      <th class="rowhead">Task</th>
+      <th>No Labeled</th>
+      <th>Human Labeled</th>
+      <th>VLM Labeled (Ours)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="rowhead">Task 1</td><td>30.0</td><td>100.0</td><td>90.0</td></tr>
+    <tr><td class="rowhead">Task 2</td><td>0.0</td><td>90.0</td><td>90.0</td></tr>
+    <tr><td class="rowhead">Task 3</td><td>0.0</td><td>70.0</td><td>70.0</td></tr>
+    <tr class="avg"><td class="rowhead">Average</td><td>10.0</td><td>86.7</td><td>83.3</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Table 3:</strong> Success rate (%) across labeling methods. VLM-generated routing labels reach 83.3% against
+  86.7% for human annotation, suggesting VLM labeling is a practical complement to human annotation as frame-level
+  annotation cost grows with dataset scale &mdash; though the generated labels may still carry biases from the pretrained VLM.
+</p>
+
+<h3>Focal loss under label imbalance</h3>
+
+<div class="table-wrap">
+<table class="paper-table">
+  <thead>
+    <tr>
+      <th class="rowhead">Task</th>
+      <th class="rowhead">Loss</th>
+      <th>Accuracy (%)</th>
+      <th>Macro Recall (%)</th>
+      <th>Minority Recall (%)</th>
+      <th>NLL</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="rowhead">Task 1</td><td class="rowhead">CE</td><td><strong>99.24</strong></td><td><strong>99.09</strong></td><td><strong>98.43</strong></td><td><strong>0.030</strong></td></tr>
+    <tr><td class="rowhead"></td><td class="rowhead">Focal</td><td>99.16</td><td>98.98</td><td>98.17</td><td><strong>0.030</strong></td></tr>
+    <tr><td class="rowhead">Task 2</td><td class="rowhead">CE</td><td>98.90</td><td>98.24</td><td>96.59</td><td>0.031</td></tr>
+    <tr><td class="rowhead"></td><td class="rowhead">Focal</td><td><strong>98.98</strong></td><td><strong>98.54</strong></td><td><strong>97.48</strong></td><td><strong>0.027</strong></td></tr>
+    <tr><td class="rowhead">Task 3</td><td class="rowhead">CE</td><td><strong>98.56</strong></td><td>97.17</td><td>93.05</td><td>0.070</td></tr>
+    <tr><td class="rowhead"></td><td class="rowhead">Focal</td><td>98.52</td><td><strong>97.46</strong></td><td><strong>94.22</strong></td><td><strong>0.031</strong></td></tr>
+  </tbody>
+</table>
+</div>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Table 4:</strong> Focal Loss vs. Cross-Entropy for router training. Overall accuracy is comparable across all
+  three tasks (within 0.1 pp). The effect on the minority class is task-dependent: on the most balanced task (Task 1)
+  CE is marginally better, while on the more imbalanced Tasks 2 and 3 Focal Loss improves macro and minority recall
+  and calibration &mdash; most visibly in Task 3, where the sparse tactile-routing class gains 1.17 pp in recall and NLL
+  drops from 0.070 to 0.031. Focal Loss is retained as an optional low-cost component, not as the source of the main
+  results in Table 1. All numbers come from a single run per configuration, so small task-level differences should be
+  read as trends.
+</p>
+
+<h3>Attention</h3>
+
+<p><img src="static/image/Fig_Attention.png" alt="Attention maps for base policy and dynamic-router policy" /></p>
+<p class="has-text-centered is-size-7 mt-2">
+  <strong>Figure 6:</strong> Comparison of attention maps for the Base Policy and the Dynamic-Router policy, showing
+  final-layer action-to-visual-token attention.
+</p>
+
+<p><br /></p>
+
+<hr />
+
+<h2 class="title is-3 has-text-centered mt-6 mb-5">Real-World Experiments</h2>
+
+<div class="box" style="background-color: #f5f5f5; border: 1px solid #e8e8e8; margin-bottom: 2rem;">
+  <div class="content">
+    <h3 class="title is-5 has-text-centered">Router output over time &mdash; Task 3: Rotate the valve on the hot side and hold down the front button</h3>
+    <video id="video1" controls="" muted="" loop="" playsinline="" width="100%">
+      <source src="static/image/router_framework.mp4" type="video/mp4" />
+    </video>
+    <p class="has-text-centered is-size-7 mt-2">
+      Live camera-selection probabilities alongside the router weights over time. The router shifts from thermal
+      (locating the overheated valve) to external RGB (approach) to tactile (contact during rotation). Playback speed &times;2.
+    </p>
+  </div>
+</div>
+
+<div class="box" style="background-color: #f5f5f5; border: 1px solid #e8e8e8; margin-bottom: 2rem;">
+  <div class="columns is-centered">
+    <div class="column">
+      <div class="content">
+        <h3 class="title is-5 has-text-centered">Task 1 &amp; Task 2 &mdash; Ours (w/ Dynamic Router)</h3>
+        <video id="video2" controls="" muted="" loop="" playsinline="" width="100%">
+          <source src="static/image/task1_task2_ours.mp4" type="video/mp4" />
+        </video>
+        <p class="has-text-centered is-size-7 mt-2">
+          <strong>Left &mdash; Task 1 (Battery Sorting):</strong> separate the hot batteries and place only the non-hot
+          batteries onto the conveyor belt.
+          &nbsp;<strong>Right &mdash; Task 2 (Wire Selection):</strong> move the thin wires to the back and the thick
+          wires to the front. Playback speed &times;2.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="box" style="background-color: #f5f5f5; border: 1px solid #e8e8e8; margin-bottom: 2rem;">
+  <div class="columns is-centered">
+    <div class="column">
+      <div class="content">
+        <h3 class="title is-5 has-text-centered">Task 3: Valve Operation &mdash; Ours (w/ Dynamic Router)</h3>
+        <video id="video3" controls="" muted="" loop="" playsinline="" width="100%">
+          <source src="static/image/task3_ours.mp4" type="video/mp4" />
+        </video>
+        <p class="has-text-centered is-size-7 mt-2">
+          Rotate the valve on the hot side and hold down the front button. Playback speed &times;2.
+        </p>
+      </div>
+    </div>
+    <div class="column">
+      <div class="content">
+        <h3 class="title is-5 has-text-centered">Task 3: Valve Operation &mdash; Baseline (w/o Dynamic Router)</h3>
+        <video id="video4" controls="" muted="" loop="" playsinline="" width="100%">
+          <source src="static/image/task3_baseline.mp4" type="video/mp4" />
+        </video>
+        <p class="has-text-centered is-size-7 mt-2">
+          Representative failures: rotated without a stable grasp, pressed the button without rotating, and failed to
+          rotate. Playback speed &times;2.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p><br /></p>
+
+<hr />
+
+<h2 id="conclusion">Conclusion</h2>
+
+<div class="content has-text-justified">
+  <p>
+    We proposed a task-aware sensory routing framework for robust multimodal robotic manipulation. The Dynamic Router
+    uses wrist camera observations and task prompts to estimate modality importance in real time and attenuate
+    task-irrelevant sensory inputs, and a VLM-based auto-labeling pipeline supplies router supervision without manual
+    frame-level annotation or additional data collection. The resulting VLA model performs comparably to its
+    human-labeled counterpart, and explicit sensory routing improves task success in scenarios requiring fine-grained
+    reasoning over visual, tactile and thermal cues.
+  </p>
+  <p>
+    The current mechanism selects the single most informative auxiliary modality. Extending it to allow concurrent
+    activation of complementary sensors &mdash; using stereo streams for depth estimation, for instance &mdash; is a promising
+    direction for broader multimodal environments, and decoupled training with pre-trained routers may improve
+    scalability. The evaluation is also limited to a single VLA backbone; assessing the routing mechanism across
+    architectures and pretraining strategies remains important for establishing its general applicability.
+  </p>
+</div>
+
+<p><br /></p>
+
+<hr />
+
+<h2 id="citation">Citation</h2>
+
+<div class="box" style="background-color: #fafafa; border: 1px solid #e8e8e8;">
+  <pre style="white-space: pre-wrap; word-break: break-word; font-size: 0.95rem;"><code>@article{son2026taskaware,
+  author  = {Son, Young-Chae and Lee, Jung-Woo and Choi, Yoon-Ji and Ko, Dae-Kwan and Lim, Soo-Chul},
+  title   = {Task-Aware Modality Selection for Multimodal VLA in Robotic Manipulation},
+  year    = {2026},
+  note    = {Under review}
+}
+</code></pre>
+</div>
+
+</div>
+
+</div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            Website template borrowed from <a href="https://github.com/nerfies/nerfies.github.io">NeRFies</a> and <a href="https://github.com/shunzh/project_website">the Jekyll fork</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
