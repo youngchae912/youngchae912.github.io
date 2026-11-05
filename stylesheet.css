@@ -140,3 +140,52 @@ span.highlight {
     display: inline-block;
     border-radius: 10px;
 }
+.yt-thumb {
+  position: relative;
+  display: inline-block;
+  width: 160px;
+  line-height: 0;
+}
+
+.yt-thumb img {
+  width: 160px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #ddd;
+}
+
+.yt-thumb::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 28px;
+  margin: -14px 0 0 -20px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.7) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3 2l5 3-5 3z' fill='white'/%3E%3C/svg%3E") center / 16px no-repeat;
+  transition: background-color .2s ease-in-out;
+}
+
+.yt-thumb:hover::after {
+  background-color: #f00;
+}
+
+#yt-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  align-items: center;
+  justify-content: center;
+}
+
+#yt-modal.open {
+  display: flex;
+}
+
+#yt-modal iframe {
+  width: min(90vw, 960px);
+  aspect-ratio: 16 / 9;
+  border: 0;
+}

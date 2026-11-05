@@ -153,7 +153,7 @@
           <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
               <tr>
               <td style="padding:16px;width:100%;vertical-align:middle">
-                <h2>Projects</h2>
+                <h2>Funded Projects</h2>
               </td>
             </tr>
           </tbody></table>
@@ -205,6 +205,35 @@
                   <li style="font-size: 0.88em; margin-top: 2px; margin-left: 16px;">Construction of over 216,000 data pairs extracted from multi-sensor videos of manipulation involving more than 200 object types, and over 100,000 Korean/English sentences (over 1 million tokens) describing robot object manipulation</li>
                   <li style="font-size: 0.88em; margin-top: 2px; margin-left: 16px;">Collection of robot manipulation data (images, 3D point clouds, force/torque, and tactile data) in real-world settings and in Isaac Gym-based simulation environments configured to resemble everyday environments</li>
                 </ul>
+              </td>
+            </tr>
+          </tbody></table>
+
+          <table style="width:100%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+              <tr>
+              <td style="padding:16px;width:100%;vertical-align:middle">
+                <h2>Personal Projects</h2>
+              </td>
+            </tr>
+          </tbody></table>
+
+          <table style="width:100%;border:0px;border-spacing:0px 10px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
+            <tr>
+              <td style="padding:10px 20px;width:25%;vertical-align:middle">
+                <a class="yt-thumb" href="https://youtu.be/VcSFqA2gFCc" data-yt-id="VcSFqA2gFCc">
+                  <img src="https://i.ytimg.com/vi/VcSFqA2gFCc/mqdefault.jpg" alt="Task Integration with a VLM Planner and VLM Monitor">
+                </a>
+              </td>
+              <td style="padding:10px 20px;width:75%;vertical-align:middle">
+                <a href="https://youtu.be/VcSFqA2gFCc">
+                  <papertitle style="font-weight: 600; font-size: 1.1em;">Task Integration with a VLM Planner and VLM Monitor</papertitle>
+                </a>
+                <br>
+                <strong>Young-Chae Son</strong>, in collaboration with Yoon-Ji Choi, Dae-Kwan Ko, Jung-Woo Lee
+                <br>
+                <a href="https://youtu.be/VcSFqA2gFCc">[Video]</a>
+                <div style="color: #666; font-size: 0.9em; font-style: italic; margin-top: 2px;">Keywords: Long-Horizon Manipulation, VLM Planning, Execution Monitoring</div>
+                <p style="margin-bottom: 0;">Composing reusable VLA skills for long-horizon manipulation, with a VLM planner that sequences skills and a VLM monitor that checks each step during execution.</p>
               </td>
             </tr>
           </tbody></table>
@@ -365,5 +394,24 @@
         </td>
       </tr>
     </table>
+
+    <div id="yt-modal"></div>
+    <script>
+      var ytModal = document.getElementById('yt-modal');
+      document.querySelectorAll('.yt-thumb').forEach(function (thumb) {
+        thumb.addEventListener('click', function (e) {
+          e.preventDefault();
+          ytModal.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + thumb.dataset.ytId +
+            '?autoplay=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
+          ytModal.classList.add('open');
+        });
+      });
+      function closeYtModal() {
+        ytModal.classList.remove('open');
+        ytModal.innerHTML = '';
+      }
+      ytModal.addEventListener('click', closeYtModal);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeYtModal(); });
+    </script>
   </body>
 </html>
