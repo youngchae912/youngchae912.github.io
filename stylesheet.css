@@ -169,23 +169,3 @@ span.highlight {
 .yt-thumb:hover::after {
   background-color: #f00;
 }
-
-#yt-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.8);
-  align-items: center;
-  justify-content: center;
-}
-
-#yt-modal.open {
-  display: flex;
-}
-
-#yt-modal iframe {
-  width: min(90vw, 960px);
-  aspect-ratio: 16 / 9;
-  border: 0;
-}
